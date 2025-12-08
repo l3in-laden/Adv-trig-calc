@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Trig Calculator</title>
+
+<!-- TOP-LEFT LOGO STYLE -->
+<style>
+    .site-logo {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        width: 1cm;
+        height: 1cm;
+        object-fit: contain;
+        z-index: 9999;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.1.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+<style>
+:root {
+    --bg: #f4f4f4;
+    --box: #ffffff;
+    --text: #000;
+    --button: #007bff;
+    --button-hover: #0056b3;
+    --point: #ff0000;
+}
+body.dark {
+    --bg: #111;
+    --box: #1b1b1b;
+    --text: #fff;
+    --button: #0d6efd;
+    --button-hover: #0b5ed7;
+    --point: #ff4a4a;
+}
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    transition: 0.3s;
+}
+.container {
+    background: var(--box);
+    padding: 25px;
+    border-radius: 12px;
+    max-width: 900px;
+    width: 100%;
+    box-shadow: 0 0 12px rgba(0,0,0,0.15);
+}
+input, select, button {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 6px;
+    font-size: 16px;
+    border: 1px solid #aaa;
+    background: var(--box);
+    color: var(--text);
+}
+button {
+    background: var(--button);
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+button:hover { background: var(--button-hover); }
+.result { text-align:center; margin-top:10px; font-size:18px; }
+.step { margin-top:10px; background: rgba(0,0,0,0.05); padding:10px; border-radius:6px; max-height:150px; overflow:auto; }
+.graph-container { display:flex; gap:20px; flex-wrap: wrap; justify-content:center; margin-top:20px; }
+canvas { background: var(--box); border-radius: 8px; }
+.switch { text-align:center; margin-top:15px; }
+</style>
+</head>
+
+<body>
+
+<!-- 🔥 TOP LEFT LOGO -->
+<img src="logo.jpg" class="site-logo" alt="Logo">
+
+<div class="container">
+    <h2 style="text-align:center;">Advanced Trig Calculator</h2>
+
+    <label>Enter Value:</label>
+    <input id="value" type="number" placeholder="Enter angle or ratio">
+
+    <label>Select Unit:</label>
+    <select id="unit">
+        <option value="deg">Degrees (°)</option>
+        <option value="rad">Radians</option>
+        <option value="ratio">Ratio (Inverse)</option>
+    </select>
+
+    <label>Select Function:</label>
+    <select id="func">
+        <optgroup label="Trigonometric Functions">
+            <option value="sin">sin</option>
+            <option value="cos">cos</option>
+            <option value="tan">tan</option>
+            <option value="cot">cot</option>
+            <option value="sec">sec</option>
+            <option value="csc">csc</option>
+        </optgroup>
+        <optgroup label="Inverse Trigonometric Functions">
+            <option value="arcsin">arcsin</option>
+            <option value="arccos">arccos</option>
+            <option value="arctan">arctan</option>
+            <option value="arccot">arccot</option>
+            <option value="arcsec">arcsec</option>
+            <option value="arccsc">arccsc</option>
+        </optgroup>
+    </select>
+
+    <button onclick="calculate()">Calculate</button>
+
+    <div class="result" id="result"></div>
+    <div class="step" id="step"></div>
+
+    <div class="graph-container">
+        <canvas id="graph" height="300" width="450"></canvas>
+        <canvas id="unitcircle" height="300" width="300"></canvas>
+    </div>
+
+    <div class="switch">
+        <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    </div>
+</div>
+
+<script>
+let chart;
+let lastAngleRad = 0;
+let lastUnit = "deg";
+
+const unitCircleCanvas = document.getElementById("unitcircle");
+const ucCtx = unitCircleCanvas.getContext("2d");
+
+document.getElementById("func").addEventListener("change", updateUnitOptions);
+document.addEventListener("keydown", e => { if(e.key==="Enter") calculate(); });
+
+function updateUnitOptions() {
+    const func = document.getElementById("func").value;
+    const unit = document.getElementById("unit");
+    const optDeg  = unit.querySelector('option[value="deg"]');
+    const optRad  = unit.querySelector('option[value="rad"]');
+    const optRat  = unit.querySelector('option[value="ratio"]');
+    const isInverse = func.startsWith("arc");
+
+    if (isInverse) {
+        optDeg.disabled = true;
+        optRad.disabled = true;
+        optRat.disabled = false;
+        unit.value = "ratio";
+    } else {
+        optDeg.disabled = false;
+        optRad.disabled = false;
+        optRat.disabled = true;
+        if(unit.value==="ratio") unit.value="deg";
+    }
+}
+
+updateUnitOptions();
+
+function calculate() {
+    const v = parseFloat(document.getElementById("value").value);
+    const func = document.getElementById("func").value;
+    const unit = document.getElementById("unit").value;
+    const stepEl = document.getElementById("step");
+
+    if (isNaN(v)){ document.getElementById("result").innerHTML="Enter a valid number."; stepEl.innerHTML=""; return; }
+
+    const rad = unit==="deg"?v*Math.PI/180:v;
+    let ans = null;
+    let valid = true;
+    let steps = [];
+
+    try{
+        switch(func){
+            case "sin": ans=Math.sin(rad); steps.push(`sin(${v}${unit==="deg"?"°":""}) = sin(${rad.toFixed(4)} rad)`); break;
+            case "cos": ans=Math.cos(rad); steps.push(`cos(${v}${unit==="deg"?"°":""}) = cos(${rad.toFixed(4)} rad)`); break;
+            case "tan": ans=Math.tan(rad); steps.push(`tan(${v}${unit==="deg"?"°":""}) = tan(${rad.toFixed(4)} rad)`); break;
+            case "cot": ans=1/Math.tan(rad); steps.push(`cot(${v}${unit==="deg"?"°":""}) = 1/tan(${rad.toFixed(4)} rad)`); break;
+            case "sec": ans=1/Math.cos(rad); steps.push(`sec(${v}${unit==="deg"?"°":""}) = 1/cos(${rad.toFixed(4)} rad)`); break;
+            case "csc": ans=1/Math.sin(rad); steps.push(`csc(${v}${unit==="deg"?"°":""}) = 1/sin(${rad.toFixed(4)} rad)`); break;
+
+            case "arcsin": valid=(v>=-1&&v<=1); if(valid) ans=Math.asin(v); steps.push(`arcsin(${v})`); break;
+            case "arccos": valid=(v>=-1&&v<=1); if(valid) ans=Math.acos(v); steps.push(`arccos(${v})`); break;
+            case "arctan": ans=Math.atan(v); steps.push(`arctan(${v})`); break;
+            case "arccot": ans=Math.PI/2-Math.atan(v); steps.push(`arccot(${v}) = π/2 - arctan(${v})`); break;
+            case "arcsec": valid=Math.abs(v)>=1; if(valid) ans=Math.acos(1/v); steps.push(`arcsec(${v}) = arccos(1/${v})`); break;
+            case "arccsc": valid=Math.abs(v)>=1; if(valid) ans=Math.asin(1/v); steps.push(`arccsc(${v}) = arcsin(1/${v})`); break;
+        }
+    }catch{valid=false;}
+    if(!valid||ans===null||Number.isNaN(ans)){ document.getElementById("result").innerHTML="Domain Error"; stepEl.innerHTML=""; return; }
+
+    document.getElementById("result").innerHTML = `${func}(${v}) = ${ans.toFixed(6)}`;
+    stepEl.innerHTML = steps.map(s=>`• ${s}`).join("<br>");
+
+    lastUnit = unit;
+    lastAngleRad = unit === "deg" ? v * Math.PI / 180 : ans;
+
+    drawGraph(func, unit, v, ans);
+    drawUnitCircle(lastAngleRad, unit);
+}
+
+function formatPi(x){
+    const pi = Math.PI;
+    const n = x/pi;
+    if(Math.abs(n)<1e-6) return "0";
+    if(Math.abs(n-1)<1e-6) return "π";
+    if(Math.abs(n+1)<1e-6) return "-π";
+    return `${n.toFixed(2)}π`;
+}
+
+function drawGraph(func, unit, inX, inY){
+    let xs=[], ys=[];
+    let step = unit==="deg"?1:0.03;
+    let start = unit==="deg"?-360:-2*Math.PI;
+    let end   = unit==="deg"?360:2*Math.PI;
+
+    if(func.startsWith("arc")){
+        start = (func==="arcsin"||func==="arccos")? -1:-10;
+        end   = (func==="arcsin"||func==="arccos")?  1: 10;
+        step = 0.01;
+    }
+
+    for(let x=start;x<=end;x+=step){
+        let y=null;
+        try{
+            let rad = unit==="deg"?x*Math.PI/180:x;
+
+            switch(func){
+                case "sin": y=Math.sin(rad); break;
+                case "cos": y=Math.cos(rad); break;
+                case "tan": y=Math.tan(rad); break;
+                case "cot": y=1/Math.tan(rad); break;
+                case "sec": y=1/Math.cos(rad); break;
+                case "csc": y=1/Math.sin(rad); break;
+
+                case "arcsin": if(x>=-1&&x<=1)y=Math.asin(x); break;
+                case "arccos": if(x>=-1&&x<=1)y=Math.acos(x); break;
+                case "arctan": y=Math.atan(x); break;
+                case "arccot": y=Math.PI/2-Math.atan(x); break;
+                case "arcsec": if(Math.abs(x)>=1)y=Math.acos(1/x); break;
+                case "arccsc": if(Math.abs(x)>=1)y=Math.asin(1/x); break;
+            }
+            if(Math.abs(y)>50 || !Number.isFinite(y)) y=null;
+
+        }catch{}
+        xs.push(x); ys.push(y);
+    }
+
+    const filtered = ys.filter(y=>y!==null);
+    const minY = filtered.length?Math.min(...filtered):-2;
+    const maxY = filtered.length?Math.max(...filtered):2;
+
+    if(chart) chart.destroy();
+    chart = new Chart(document.getElementById("graph"), {
+        type:"line",
+        data:{
+            datasets:[
+                { data: xs.map((x,i)=>({x:x,y:ys[i]})), borderColor:"#007bff", pointRadius:0, tension:0.15 },
+                { data:[{x:inX,y:inY}], pointRadius:7, pointBackgroundColor:getComputedStyle(document.body).getPropertyValue("--point"), pointBorderColor:"#fff", pointBorderWidth:2, showLine:false }
+            ]
+        },
+        options:{
+            parsing:false, responsive:true,
+            scales:{
+                x:{type:"linear",
+                   ticks:{ callback:(val)=> unit==="rad"?formatPi(val):val },
+                   title:{display:true,text:"X"}
+                },
+                y:{min:minY,max:maxY,title:{display:true,text:"Y"}}
+            },
+            plugins:{
+                legend:{display:false},
+                zoom:{zoom:{wheel:{enabled:true},mode:'xy'},pan:{enabled:true,mode:'xy'}},
+            }
+        }
+    });
+}
+
+// ---------------------------
+// FIXED UNIT CIRCLE (Dark Mode Friendly)
+// ---------------------------
+
+function drawUnitCircle(angleRad, unit){
+    ucCtx.clearRect(0,0,unitCircleCanvas.width,unitCircleCanvas.height);
+
+    const w = unitCircleCanvas.width;
+    const h = unitCircleCanvas.height;
+    const r = Math.min(w,h)/2 - 20;
+    const cx = w/2;
+    const cy = h/2;
+
+    const textColor = getComputedStyle(document.body).getPropertyValue("--text");
+
+    // Circle
+    ucCtx.beginPath();
+    ucCtx.arc(cx, cy, r, 0, 2*Math.PI);
+    ucCtx.strokeStyle = "#007bff";
+    ucCtx.lineWidth = 2;
+    ucCtx.stroke();
+
+    // Coordinates
+    const rad = angleRad;
+    const px = cx + r*Math.cos(rad);
+    const py = cy - r*Math.sin(rad);
+
+    const cosVal = Math.cos(rad);
+    const sinVal = Math.sin(rad);
+
+    // Radius line
+    ucCtx.beginPath();
+    ucCtx.moveTo(cx, cy);
+    ucCtx.lineTo(px, py);
+    ucCtx.strokeStyle = "#ff0000";
+    ucCtx.lineWidth = 2;
+    ucCtx.stroke();
+
+    // Point
+    ucCtx.beginPath();
+    ucCtx.arc(px, py, 6, 0, 2*Math.PI);
+    ucCtx.fillStyle = "#ff0000";
+    ucCtx.fill();
+
+    ucCtx.font = "14px Arial";
+    ucCtx.fillStyle = textColor;
+
+    // Horizontal projection
+    ucCtx.beginPath();
+    ucCtx.moveTo(cx, cy);
+    ucCtx.lineTo(cx + r*cosVal, cy);
+    ucCtx.strokeStyle = "#0b5ed7";
+    ucCtx.setLineDash([6,4]);
+    ucCtx.stroke();
+    ucCtx.setLineDash([]);
+
+    ucCtx.fillText(`cos(θ) = ${cosVal.toFixed(3)}`, cx + r*cosVal - 25, cy - 10);
+
+    // Vertical projection
+    ucCtx.beginPath();
+    ucCtx.moveTo(cx, cy);
+    ucCtx.lineTo(cx, cy - r*sinVal);
+    ucCtx.setLineDash([6,4]);
+    ucCtx.stroke();
+    ucCtx.setLineDash([]);
+
+    ucCtx.fillText(`sin(θ) = ${sinVal.toFixed(3)}`, cx + 10, cy - r*sinVal);
+
+    // Connect projections to point
+    ucCtx.beginPath();
+    ucCtx.setLineDash([5,5]);
+    ucCtx.moveTo(px, py);
+    ucCtx.lineTo(px, cy - r*sinVal);
+    ucCtx.moveTo(px, py);
+    ucCtx.lineTo(cx + r*cosVal, py);
+    ucCtx.strokeStyle="#0b5ed7";
+    ucCtx.stroke();
+    ucCtx.setLineDash([]);
+
+    // Angle label
+    ucCtx.font = "16px Arial";
+    ucCtx.fillStyle = textColor;
+    ucCtx.fillText(
+        `θ = ${unit==="deg" ? (rad*180/Math.PI).toFixed(2)+"°" : rad.toFixed(3)+" rad"}`,
+        cx - 35, cy + r + 20
+    );
+}
+
+function toggleDarkMode(){
+    document.body.classList.toggle("dark");
+    drawUnitCircle(lastAngleRad, lastUnit);
+}
+</script>
+</body>
+</html>
