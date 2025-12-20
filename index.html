@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Advanced Trigonometry Calculator | Free Online Tool</title> 
+<!-- Open Graph (helps Google fix site name & trust) -->
+<meta property="og:title" content="Advanced Trigonometry Calculator">
+<meta property="og:description" content="Free advanced trigonometric calculator for sin, cos, tan, inverse functions with graphs and unit circle.">
+<meta property="og:url" content="https://l3in-laden.github.io/Adv-trig-calc/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Advanced Trigonometry Calculator">
 <meta name="description" content="Free advanced trigonometric calculator to calculate sin, cos, tan, inverse trigonometric functions and formulas online.">
   <meta name="keywords" content="advanced trigonometric calculator, trig calculator, sin cos tan calculator, inverse trigonometry">
   <meta name="robots" content="index, follow">
@@ -84,8 +90,8 @@ button:hover { background: var(--button-hover); }
 canvas { background: var(--box); border-radius: 8px; }
 .switch { text-align:center; margin-top:15px; }
 </style>
+  <!-- Google AdSense script will be added here AFTER approval -->
 </head>
-
 <body>
 
 <!-- 🔥 TOP LEFT LOGO -->
@@ -93,7 +99,11 @@ canvas { background: var(--box); border-radius: 8px; }
 
 <div class="container">
     <h1 style="text-align:center;">Advanced Trigonometry Calculator</h1>
-
+<p style="text-align:center; max-width:700px; margin:auto;">
+This advanced trigonometry calculator helps students, teachers, and engineers
+compute trigonometric and inverse trigonometric functions with step-by-step
+results, interactive graphs, and a dynamic unit circle.
+</p>
     <label>Enter Value:</label>
     <input id="value" type="number" placeholder="Enter angle or ratio">
 
@@ -385,5 +395,11 @@ function toggleDarkMode(){
     drawUnitCircle(lastAngleRad, lastUnit);
 }
 </script>
+  <footer style="text-align:center; margin-top:40px; font-size:14px; opacity:0.85;">
+  <a href="about.html">About</a> |
+  <a href="contact.html">Contact</a> |
+  <a href="privacy-policy.html">Privacy Policy</a> |
+  <a href="terms.html">Terms & Conditions</a>
+</footer>
 </body>
 </html>
